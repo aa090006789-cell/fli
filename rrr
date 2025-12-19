@@ -1,0 +1,67 @@
+-- 將此腳本放在 SuperFlingButton 裡
+-- 它會自動創建所需的所有組件
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local player = Players.LocalPlayer
+
+-- 創建遠程事件（如果不存在）
+local flingEvent
+if not ReplicatedStorage:FindFirstChild("SuperFlingEvent") then
+    flingEvent = Instance.new("RemoteEvent")
+    flingEvent.Name = "SuperFlingEvent"
+    flingEvent.Parent = ReplicatedStorage
+else
+    flingEvent = ReplicatedStorage:WaitForChild("SuperFlingEvent")
+end
+
+-- 創建伺服器腳本（如果不存在）
+if not ServerScriptService:FindFirstChild("SuperFlingServer") then
+    local serverScript = Instance.new("Script")
+    serverScript.Name = "SuperFlingServer"
+    
+    -- 伺服器腳本內容
+    serverScript.Source = [[
+        local Players = game:GetService("Players")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local Debris = game:GetService("Debris")
+        
+        local flingEvent = ReplicatedStorage:WaitForChild("SuperFlingEvent")
+        local FLING_STRENGTH = 200
+        
+        flingEvent.OnServerEvent:Connect(function(player)
+            local originChar = player.Character
+            if not (originChar and originChar:FindFirstChild("HumanoidRootPart")) then return end
+            
+            local originPos = originChar.HumanoidRootPart.Position
+            for _, target in ipairs(Players:GetPlayers()) do
+                if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = target.Character.HumanoidRootPart
+                    local bv = Instance.new("BodyVelocity")
+                    bv.Velocity = (hrp.Position - originPos).unit * FLING_STRENGTH + Vector3.new(0, FLING_STRENGTH/2, 0)
+                    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                    bv.P = 1250
+                    bv.Parent = hrp
+                    Debris:AddItem(bv, 0.5)
+                end
+            end
+        end)
+    ]]
+    
+    serverScript.Parent = ServerScriptService
+end
+
+-- 按鈕點擊事件
+script.Parent.MouseButton1Click:Connect(function()
+    -- 向伺服器發送事件
+    flingEvent:FireServer()
+    
+    -- 可選：添加本地視覺效果
+    script.Parent:TweenSize(UDim2.new(0.9, 0, 0.9, 0), "Out", "Quad", 0.1, true, function()
+        script.Parent:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.1)
+    end)
+end)
+
+print("超級拋射系統已初始化！")
